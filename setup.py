@@ -40,8 +40,9 @@ setup(
     zip_safe=False,
     classifiers=[
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Developers',
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: End Users/Desktop',
+        'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: Unix',
         'Operating System :: POSIX',
@@ -60,6 +61,7 @@ setup(
         # 'Programming Language :: Python :: Implementation :: Jython',
         # 'Programming Language :: Python :: Implementation :: Stackless',
         'Topic :: Utilities',
+        'Topic :: Scientific/Engineering',
     ],
     project_urls={
         'Documentation': 'https://ciftostr.readthedocs.io/',
@@ -67,11 +69,15 @@ setup(
         'Issue Tracker': 'https://github.com/rowlesmr/ciftostr/issues',
     },
     keywords=[
-        # eg: 'keyword1', 'keyword2', 'keyword3',
+        'diffraction', 'X-ray', 'neutron',
+        'synchrotron', 'powder diffraction', 'CIF',
+        'crystallography', 'Rietveld', 'TOPAS',
     ],
     python_requires='>=3.6',
     install_requires=[
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
+	'PyCifRW>=4.4.3',
+	'PySimpleGUI>=4.39.1',
     ],
     extras_require={
         # eg:
