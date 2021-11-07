@@ -92,14 +92,16 @@ To see some other helpful information, try::
 jEdit integration
 =================
 
-[John Evans](http://topas.dur.ac.uk) has made available [a number of macros](http://topas.dur.ac.uk/topaswiki/doku.php?id=jedit) for the text editor [jEdit](http://www.jedit.org/) that make it integrate very well with TOPAS when operating in launch mode.
+`Link text <link URL>`_
 
-As a part of these macros, there is the ability to insert CIF files in STR format. If you wish to use `ciftostr` to generate the STR information, then you need to make the following changes:
+`John Evans <http://topas.dur.ac.uk>`_ has made available `a number of macros <http://topas.dur.ac.uk/topaswiki/doku.php?id=jedi>`_ for the text editor `jEdit <http://www.jedit.org/>`_ that make it integrate very well with TOPAS when operating in launch mode.
 
-0. pip install ciftostr (or use `ciftostr.exe`)
-1. Replace your copy of `TAInsertCIF.bsh` with [this one](TAInsertCIF.bsh). (Your file is probably found in C:\Users\?????\AppData\Roaming\jEdit\macros)
+As a part of these macros, there is the ability to insert CIF files in STR format. If you wish to use ``ciftostr`` to generate the STR information, then you need to make the following changes:
 
-Now, when you choose "`Insert CIFs in INP format`" from the plugin in jEdit, `ciftostr` will be used in the background to generate that format.
+0. ``pip install ciftostr`` (or use ``ciftostr.exe``)
+1. Replace your copy of ``TAInsertCIF.bsh`` with `this one <TAInsertCIF.bsh>`_. (Your file is probably found in C:\Users\?????\AppData\Roaming\jEdit\macros)
+
+Now, when you choose "``Insert CIFs in INP format``" from the plugin in jEdit, ``ciftostr`` will be used in the background to generate that format.
 
 
 Documentation
