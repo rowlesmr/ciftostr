@@ -1,0 +1,18 @@
+	str
+		phase_name "Trilithium thorium fluoride_1000073"
+		Phase_Density_g_on_cm3( 0)
+		CS_L( ,200)
+		scale @ 0.0001
+		a 8.7885
+		b 8.7685
+		c 12.958
+		space_group "C c c a :2"
+		site Th1 num_posns 0	x 0.25   y 0.     z 0.1889 occ Th+4 1.   beq 0.534
+		site F1  num_posns 0	x 0.25   y 0.     z 0.3718 occ F-1  1.   beq 1.158
+		site F2  num_posns 0	x 0.0632 y 0.0995 z 0.5772 occ F-1  1.   beq 1.195
+		site F3  num_posns 0	x 0.1496 y 0.3125 z 0.4212 occ F-1  1.   beq 1.29 
+		site F4  num_posns 0	x 0.     y 0.4364 z 0.25   occ F-1  1.   beq 1.232
+		site F5  num_posns 0	x 0.3153 y 0.25   z 0.25   occ F-1  1.   beq 1.395
+		site Li1 num_posns 0	x 0.354  y 0.186  z 0.431  occ Li+1 0.75 beq 1.   
+		site Li2 num_posns 0	x 0.067  y 0.099  z 0.419  occ Li+1 0.75 beq 1.   
+

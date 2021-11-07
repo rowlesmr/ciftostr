@@ -1,0 +1,33 @@
+TAInsertCIF(v) {
+    t = v.getTextArea();
+    b = t.getBuffer();
+    jEdit.setProperty("vfs.browser.last-filter", "*.cif");
+    w_path = jEdit.getProperty("ta.last_cif_path");
+    String w_ta_main_dir = jEdit.getProperty("ta.main.dir");
+    if (w_path == null) {
+        w_path = w_ta_main_dir + "cif\\";
+    }
+    jEdit.setProperty("vfs.browser.last-path", w_path);
+    VFSFileChooserDialog chooser = new VFSFileChooserDialog(v, w_path, VFSBrowser.OPEN_DIALOG, true);
+    String[] files = chooser.getSelectedFiles();
+	if (files != null) {
+		StringBuffer sb = new StringBuffer();
+		for(int i = 0; i < files.length; i++) {
+			sb.append(files[i] + " ");
+		}
+		String filesstr = sb.toString();				
+		b.beginCompoundEdit();
+		runInSystemShell(v, "\"" + w_ta_main_dir + "\"");			
+		waitForConsole(v);								
+		runInSystemShell(v, "ciftostr --jedit " + filesstr + " " + w_ta_main_dir + "output.str");
+		waitForConsole(v);								
+		t.goToEndOfLine(false);					
+		b.insert(t.getCaretPosition(), "\n");
+		b.insertFile(v, w_ta_main_dir + "output.str");
+		VFSManager.waitForRequests();
+		b.insert(t.getCaretPosition(), "\n");
+		b.endCompoundEdit();
+		jEdit.setProperty("ta.last_cif_path", files[0]);
+	}
+}
+TAInsertCIF(view);
