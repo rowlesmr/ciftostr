@@ -23,7 +23,7 @@ def read(*names, **kwargs):
 
 setup(
     name='ciftostr',
-    version='0.0.0',
+    version='0.1.0',
     license='Apache-2.0',
     description='A small utility to convert crystal structures in CIF format into TOPAS STR format.',
     long_description='%s\n%s' % (
