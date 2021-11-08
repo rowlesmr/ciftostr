@@ -53,14 +53,34 @@ If the program is run with zero command line arguments, then a GUI is launched, 
 
 * Free software: Apache Software License 2.0
 
+Pre-installation
+============
+
+If you are on Windows, you must read this step. If you are on Linuz, you can continue.
+
+``ciftostr`` requires ``PyCifRW >= 4.4.3``. If you install ``PyCifRW`` from `PyPI <https://pypi.org/>`_ via ``pip``, then you will also need to compile the included C modules. To do so requires `Microsoft Visual C++ 14.0 or greater <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`_. If you don't have this installed, or do not wish to install it, `precompiled wheel files are available <https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycifrw>`_. You must download the wheel file corresponding to your Python installation.
+
+To obtain information about your Python installation, run the command::
+
+	python -VV
+
+An example output is `Python 3.9.4 (tags/v3.9.4:1f2e308, Apr  6 2021, 13:40:21) [MSC v.1928 64 bit (AMD64)]`, showing that this is 64 bit Python 3.9.
+
+Using ``pip`` version 19.2 or newer, install your downloaded wheel file as::
+
+	pip install c:\path\to\file\name_of_file.whl
+
+This should install ``PyCifRW``, and you can move on to the next step.
+
+
 Installation
 ============
 
-To install the release version from PyPi::
+To install the release version of ``ciftostr`` from PyPI::
 
     pip install ciftostr
 
-You can also install the in-development version with::
+You can also install the in-development version of ``ciftostr`` with::
 
     pip install https://github.com/rowlesmr/ciftostr/archive/master.zip
 
@@ -74,19 +94,18 @@ If you would like to run it in the command line, you need to provide some comman
 	ciftostr C:\user\username\some\directory\name.cif D:\data\file.cif
 	ciftostr /nfs/an/disks/jj/home/dir/file.cif home/folder/nest/deeper/important.cif
 
-will convert all CIF files in the current directory or the two CIF files specifically - both Windows and Linux filepaths are accepter. The resulting STR files will be saved in the same path as their parent CIF file. Relative or absolute file paths can be used.
+will convert all CIF files in the current directory or the two CIF files specifically - both Windows and Linux filepaths are accepted. The resulting STR files will be saved in the same path as their parent CIF file. Relative or absolute file paths can be used.
 
 To launch the GUI::
 
-	python ciftostr.pyz
-
+	ciftostr
 
 Bonus Windows executable behaviour: You can drag a CIF file onto the program icon, and it will convert the CIF for you.
 
 To see some other helpful information, try::
 
-	python ciftostr.pyz --help
-	python ciftostr.pyz --info
+	ciftostr --help
+	ciftostr --info
 
 
 jEdit integration
