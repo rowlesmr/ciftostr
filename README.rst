@@ -54,7 +54,7 @@ If the program is run with zero command line arguments, then a GUI is launched, 
 * Free software: Apache Software License 2.0
 
 Pre-installation
-============
+================
 
 If you are on Windows, you must read this step. If you are on Linuz, you can continue.
 
