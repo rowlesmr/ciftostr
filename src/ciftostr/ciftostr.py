@@ -96,6 +96,7 @@ def create_str(cif, data):
     s += f'\t\tphase_name "{get_phasename(cif, data)}"\n'
     s += "\t\tPhase_Density_g_on_cm3( 0)\n"
     s += "\t\tCS_L( ,200)\n"
+    s += "\t\tMVW(0,0,0)\n"
     s += "\t\tscale @ 0.0001\n"
     s += get_unitcell(cif, data) + "\n"
     s += f'\t\tspace_group "{get_spacegroup(cif, data)}"\n'
@@ -146,7 +147,7 @@ def change_NA_value(s):
 
 def val_to_frac(s):
     """
-    Checks a list (or single) strings consisting of numeric values for
+    Checks a single string consisting of numeric values for
     values which are consistent with fractional values.
 
     If those values are consistent with 1/6, 1/3, 2/3, or 5/6, then the decimal
@@ -158,45 +159,51 @@ def val_to_frac(s):
     None is returned as None
 
     Args:
-        s: A list of strings, or a single string represent numerical values.
+        s: A  single string represent numerical values.
     Returns:
-        A list of strings, or a single string, with fractions representing 1/6, 1/3, 2/3, or 5/6
+        A single string, with fractions representing 1/6, 1/3, 2/3, or 5/6
     """
-    ONE_SIXTH = ("0.1666", "0.16666", "0.166666", "0.1666666",
-                 "0.1667", "0.16667", "0.166667", "0.1666667")
-    ONE_THIRD = ("0.3333", "0.33333", "0.333333", "0.3333333")
-    TWO_THIRD = ("0.6666", "0.66666", "0.666666", "0.6666666",
-                 "0.6667", "0.66667", "0.666667", "0.6666667")
-    FIVE_SIXTH = ("0.8333", "0.83333", "0.833333", "0.8333333")
+    ONE_SIXTH = ["0.1666", "0.16666", "0.166666", "0.1666666",
+                 "0.1667", "0.16667", "0.166667", "0.1666667"]
+    ONE_THIRD = ["0.3333", "0.33333", "0.333333", "0.3333333"]
+    TWO_THIRD = ["0.6666", "0.66666", "0.666666", "0.6666666",
+                 "0.6667", "0.66667", "0.666667", "0.6666667"]
+    FIVE_SIXTH = ["0.8333", "0.83333", "0.833333", "0.8333333"]
+    NEG_ONE_SIXTH = [f"-{s}" for s in ONE_SIXTH]
+    NEG_ONE_THIRD = [f"-{s}" for s in ONE_THIRD]
+    NEG_TWO_THIRD = [f"-{s}" for s in TWO_THIRD]
+    NEG_FIVE_SIXTH = [f"-{s}" for s in FIVE_SIXTH]
 
-    ONE_SIXTH_FRAC = "=1/6;"
-    ONE_THIRD_FRAC = "=1/3;"
-    TWO_THIRD_FRAC = "=2/3;"
-    FIVE_SIXTH_FRAC = "=5/6;"
+    ONE_SIXTH_FRAC = ["=1/6;"] * len(ONE_SIXTH)
+    ONE_THIRD_FRAC = ["=1/3;"] * len(ONE_THIRD)
+    TWO_THIRD_FRAC = ["=2/3;"] * len(TWO_THIRD)
+    FIVE_SIXTH_FRAC = ["=5/6;"] * len(FIVE_SIXTH)
+    NEG_ONE_SIXTH_FRAC = ["=-1/6;"] * len(ONE_SIXTH)
+    NEG_ONE_THIRD_FRAC = ["=-1/3;"] * len(ONE_THIRD)
+    NEG_TWO_THIRD_FRAC = ["=-2/3;"] * len(TWO_THIRD)
+    NEG_FIVE_SIXTH_FRAC = ["=-5/6;"] * len(FIVE_SIXTH)
+
+    ONE_SIXTH_d = dict(zip(ONE_SIXTH + NEG_ONE_SIXTH, ONE_SIXTH_FRAC + NEG_ONE_SIXTH_FRAC))
+    ONE_THIRD_d = dict(zip(ONE_THIRD + NEG_ONE_THIRD, ONE_THIRD_FRAC + NEG_ONE_THIRD_FRAC))
+    TWO_THIRD_d = dict(zip(TWO_THIRD + NEG_TWO_THIRD, TWO_THIRD_FRAC + NEG_TWO_THIRD_FRAC))
+    FIVE_SIXTH_d = dict(zip(FIVE_SIXTH + NEG_FIVE_SIXTH, FIVE_SIXTH_FRAC + NEG_FIVE_SIXTH_FRAC))
+
+    fracs = {}
+    fracs.update(ONE_SIXTH_d)
+    fracs.update(ONE_THIRD_d)
+    fracs.update(TWO_THIRD_d)
+    fracs.update(FIVE_SIXTH_d)
 
     r = None
 
     if s is None:
         return r
 
-    fraction_detected = False
-    if s in ONE_SIXTH:
-        fraction_detected = True
-        r = ONE_SIXTH_FRAC
-    elif s in ONE_THIRD:
-        fraction_detected = True
-        r = ONE_THIRD_FRAC
-    elif s in TWO_THIRD:
-        fraction_detected = True
-        r = TWO_THIRD_FRAC
-    elif s in FIVE_SIXTH:
-        fraction_detected = True
-        r = FIVE_SIXTH_FRAC
-    else:
-        r = s  # s is all good
-
-    if fraction_detected:
+    try:
+        r = fracs[s]
         print(f"Fractional atomic coordinate '{s}' detected and replaced with '{r}'.")
+    except KeyError:
+        r = s  # s isn't a fraction. probably.
 
     return r
 
@@ -477,31 +484,31 @@ def get_unitcell(cif, data):
     s = ""
     if a == b and b == c:  # cubic or rhombohedral
         if al == be and be == ga and al == float("90"):  # cubic
-            s = f"\t\tCubic({a_s})"
+            s = f"\t\tCubic({a_s})\t'{a_s}"
         if al == be and be == ga and al != float("90"):  # rhombohedral
-            s = f"\t\tRhombohedral({a_s}, {al_s})"
+            s = f"\t\tRhombohedral({a_s}, {al_s})\t'{a_s}, {al_s}"
 
     elif a == b and b != c:  # tetragonal or hexagonal/trigonal
         if al == be and be == ga and al == float("90"):  # tetragonal
-            s = f"\t\tTetragonal({a_s}, {c_s})"
+            s = f"\t\tTetragonal({a_s}, {c_s})\t'{a_s}, {c_s}"
         if al == be and al == float("90") and ga == float("120"):  # hexagonal or trigonal
-            s = f"\t\tHexagonal({a_s}, {c_s})"
+            s = f"\t\tHexagonal({a_s}, {c_s})\t'{a_s}, {c_s}"
 
     elif a != b and a != c and b != c:  # ortho, mono, tric
         if al == be and be == ga and al == float("90"):  # ortho
-            s = f"\t\ta {a_s}\n\t\tb {b_s}\n\t\tc {c_s}"
+            s = f"\t\ta {a_s}\t'{a_s}\n\t\tb {b_s}\t'{b_s}\n\t\tc {c_s}\t'{c_s}"
         if al != be and al != ga and be != ga:  # tric
-            s = f"\t\ta  {a_s}\n\t\tb  {b_s}\n\t\tc  {c_s}\n\t\tal {al_s}\n\t\tbe {be_s}\n\t\tga {ga_s}"
+            s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tal {al_s}\t'{al_s}\n\t\tbe {be_s}\t'{be_s}\n\t\tga {ga_s}\t'{ga_s}"
         if al == be and al != ga and al == float("90"):  # mono_1
-            s = f"\t\ta  {a_s}\n\t\tb  {b_s}\n\t\tc  {c_s}\n\t\tga {ga_s}"
+            s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tga {ga_s}\t'{ga_s}"
         if al == ga and al != be and al == float("90"):  # mono_2
-            s = f"\t\ta  {a_s}\n\t\tb  {b_s}\n\t\tc  {c_s}\n\t\tbe {be_s}"
+            s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tbe {be_s}\t'{be_s}"
         if be == ga and be != al and be == float("90"):  # mono_3
-            s = f"\t\ta  {a_s}\n\t\tb  {b_s}\n\t\tc  {c_s}\n\t\tal {al_s}"
+            s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tal {al_s}\t'{al_s}"
 
     # to catch everything else
     else:
-        s = f"\t\ta  {a_s}\n\t\tb  {b_s}\n\t\tc  {c_s}\n\t\tal {al_s}\n\t\tbe {be_s}\n\t\tga {ga_s}"
+        s = f"\t\ta {a_s}\t'{a_s}\n\t\tb {b_s}\t'{b_s}\n\t\tc {c_s}\t'{c_s}\n\t\tal {al_s}\t'{al_s}\n\t\tbe {be_s}\t'{be_s}\n\t\tga {ga_s}\t'{ga_s}"
 
     return s
 
