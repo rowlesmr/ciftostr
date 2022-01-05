@@ -39,9 +39,9 @@ Overview
     :alt: Supported implementations
     :target: https://pypi.org/project/ciftostr
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/rowlesmr/ciftostr/v0.1.0.svg
+.. |commits-since| image:: https://img.shields.io/github/commits-since/rowlesmr/ciftostr/v0.1.1.svg
     :alt: Commits since latest release
-    :target: https://github.com/rowlesmr/ciftostr/compare/v0.1.0...master
+    :target: https://github.com/rowlesmr/ciftostr/compare/v0.1.1...master
 
 
 
