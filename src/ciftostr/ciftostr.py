@@ -62,21 +62,13 @@ def write_str(cif_file, str_file=None, data="all"):
 
         update_output_filename = not append_data  # if I'm appending, I don't want to update the filename each time
 
-        if os.path.isabs(str_file):  # if the given strfile is a full path, use it, don't change it.
-            f = str_file
-        else:  # otherwise, take the path from the cif file
-            f = os.path.join(path, str_file)
-
-        if append_data:
-            file_to_write = open(f, "a")
-        else:
-            file_to_write = open(f, "w")
-
+        filename = str_file if os.path.isabs(str_file) else os.path.join(path, str_file)
+        write_type = "a" if append_data else "w"
         s = create_str(cif, d)
 
-        print(f"Now writing {file_to_write.name}.")
-        file_to_write.write(s)
-        file_to_write.close()
+        with open(filename, write_type) as f:
+            print(f"Now writing {filename}.")
+            f.write(s)
 
     print("Done.")
 

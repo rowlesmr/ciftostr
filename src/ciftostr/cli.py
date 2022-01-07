@@ -206,22 +206,25 @@ def main(argv=sys.argv):
         print(HELP)
         sys.exit()
 
-    if "--jedit" == argv[1]:
-        print("jEdit mode activated!")
+    filenames = []
+    if argv[1] == "--jedit":
+        print("jEdit mode activated!!")
 
-        filenames = []
+        print("The commands I received were")
+        for arg in argv:
+            print(f"{arg} ", end=" ")
+        print("\n")
+
         for i in range(2, len(argv) - 1):
             filenames += glob(argv[i])
         strname = argv[-1]
 
         # delete the contents of the strname file, if it exists
-        f = open(strname, "w")
-        f.write("")
-        f.close()
+        with open(strname, 'w') as f:
+            f.write("")
 
         convert_cifs_to_strs(filenames, str_file=strname, data="append")
     else:
-        filenames = []
         for i in range(1, len(argv)):
             filenames += glob(argv[i])
 
