@@ -17,7 +17,7 @@ import CifFile
 
 
 # TODO: add test
-def write_str(cif_file, str_file=None, data="all"):
+def write_str(cif_file, str_file=None, data="all", work=False):
     """
     Writes all structures in a given CIF to one file each from a given cif file..
 
@@ -30,11 +30,12 @@ def write_str(cif_file, str_file=None, data="all"):
         data : do you want 'all', the 'first', or the 'last' data blocks in the cif?
                if "append", then all the structures from the cif are written to
                  one file
+        work : add the special requirements we figured out for work-related strs
     Returns:
         None. Writes file to disk.
      """
     print(f"Now reading {cif_file}.")
-    cif = CifFile.ReadCif(cif_file)
+    cif = CifFile.ReadCif(cif_file, permissive=True)
 
     if data == "first":
         data_keys = [cif.keys()[0]]
@@ -64,7 +65,7 @@ def write_str(cif_file, str_file=None, data="all"):
 
         filename = str_file if os.path.isabs(str_file) else os.path.join(path, str_file)
         write_type = "a" if append_data else "w"
-        s = create_str(cif, d)
+        s = create_str(cif, d, work)
 
         with open(filename, write_type) as f:
             print(f"Now writing {filename}.")
@@ -74,23 +75,31 @@ def write_str(cif_file, str_file=None, data="all"):
 
 
 # TODO: add test
-def create_str(cif, data):
+def create_str(cif, data, work=False):
     """
     Creates a single string formatted as an STR representing the given data block in the cif.
 
     Args:
         cif: PyCifRW representation of a cif file
         data: the key of the data block to convert to a STR
+        work: add the work-related bits and bobs
     Returns:
         A single string formatted as a TOPAS STR.
      """
     s = "\tstr\n"
     s += f'\t\tphase_name "{get_phasename(cif, data)}"\n'
     s += "\t\tPhase_Density_g_on_cm3( 0)\n"
-    s += "\t\tCS_L( ,200)\n"
+
+    if work:
+        s += "\t\tCS_L_local(!csL ,200)\n"
+        s += "\t\tCS_G_local(!csG ,200)\n"
+        s += "\t\tStrain_L_local(!strL ,0.001)\n"
+        s += "\t\tStrain_G_local(!strG ,0.001)\n"
+    else:
+        s += "\t\tCS_L( ,200)\n"
     s += "\t\tMVW(0,0,0)\n"
     s += "\t\tscale @ 0.0001\n"
-    s += get_unitcell(cif, data) + "\n"
+    s += get_unitcell(cif, data, work) + "\n"
     s += f'\t\tspace_group "{get_spacegroup(cif, data)}"\n'
     s += get_atom_sites_string(cif, data) + '\n'
 
@@ -116,7 +125,7 @@ def strip_brackets(s):
     except ValueError:  # if there isn't a bracket, just keep going.
         bracket = len(s)
 
-    return s[0:bracket]
+    return s[:bracket]
 
 
 def change_NA_value(s):
@@ -256,16 +265,7 @@ def pad_string_list(l, pad="post"):
     if l is None:
         return None
 
-    # if any strings start with '-', it's probably a negative number, and I need to prepend
-    #  a space to those that don't start with a '-'.
-    negative_string = False
-
-    for s in l:
-        if s.startswith("-"):
-            negative_string = True
-            break  # only need to see if one is negative
-
-    if negative_string:  # Prepend the string if it looks like a negative number
+    if any(s.startswith("-") for s in l):  # Prepend the string if it looks like a negative number
         l = [" " + s if not s.startswith("-") else s for s in l]
 
     # what is the max str len?
@@ -321,11 +321,7 @@ def count_nones(l):
     num : integer with the number of Nones is the iterable
 
     """
-    num = 0
-    for s in l:
-        if s is None:
-            num += 1
-    return num
+    return sum(s is None for s in l)
 
 
 def clean_phasename(s):
@@ -405,11 +401,7 @@ def get_phasename(cif, data):
 
     r = ""
     # check that all the types of non-name names are accounted for.
-    if phasename in ("", ".", "?", None):
-        r = data
-    else:
-        r = f"{phasename}_{data}"
-
+    r = data if phasename in ("", ".", "?", None) else f"{phasename}_{data}"
     return r
 
 
@@ -443,7 +435,7 @@ def get_spacegroup(cif, data):
     return spacegroup
 
 
-def get_unitcell(cif, data):
+def get_unitcell(cif, data, work=False):
     """
     Returns a string giving the unit cell parameters of the structure.
     Some pattern matching is carried out to return TOPAS macros for
@@ -798,7 +790,7 @@ def convert_u_to_b(s):
         return None
 
     s = float(s)
-    s = 8 * math.pi ** 2 * s
+    s *= 8 * math.pi ** 2
     s = str(round(float(s), 3))  # round B value to 3 d.p.
     return s
 
@@ -882,7 +874,7 @@ def make_b_dict(cif, data, b_type):
     """
     A helper function for get_beq() to get the site labels and associated ADP values, and
     return a dictionary with labels as keys and values as ADP values. If the value is None,
-    then that key is removed
+    or 0, then that key is removed.
 
     Parameters
     ----------
@@ -930,6 +922,9 @@ def make_b_dict(cif, data, b_type):
 
     # filter out any None values
     d = {k: v for k, v in d.items() if v is not None}
+    # filter out zero values
+    d = {k: v for k, v in d.items() if v != "0.0"}
+
     return d
 
 
@@ -980,7 +975,4 @@ def get_u_aniso(cif, data):
     U22 = [float(strip_brackets(i)) for i in cif[data]["_atom_site_aniso_U_22"]]
     U33 = [float(strip_brackets(i)) for i in cif[data]["_atom_site_aniso_U_33"]]
 
-    # get the average of the three values
-    b_equiv = [convert_u_to_b(str((u11 + u22 + u33) / 3.0)) for u11, u22, u33 in zip(U11, U22, U33)]
-
-    return b_equiv
+    return [convert_u_to_b(str((u11 + u22 + u33) / 3.0)) for u11, u22, u33 in zip(U11, U22, U33)]

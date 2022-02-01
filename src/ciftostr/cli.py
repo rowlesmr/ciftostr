@@ -148,7 +148,7 @@ def gui():
         [sg.Input(key='_FILES_'),
          sg.FilesBrowse(file_types=(("CIFs", "*.cif"), ("All files", "*.*"),))],
 
-        [sg.Button('Convert'), sg.Button('Exit'), sg.Button('Info')]
+        [sg.Button('Convert'), sg.Button('Exit'), sg.Button('Info'), sg.Stretch(), sg.Checkbox("Work-related", default=False, key="work")]
     ]
 
     window = sg.Window("ciftostr", layout, finalize=True)
@@ -161,13 +161,14 @@ def gui():
         if event in (sg.WIN_CLOSED, 'Exit'):
             break
         elif event == 'Convert':
-            convert_cifs_to_strs(filenames)
+            work = values["work"]
+            convert_cifs_to_strs(filenames, work=work)
         elif event == 'Info':
             print(INFO)
     window.close()
 
 
-def convert_cifs_to_strs(filenames, str_file=None, data="all"):
+def convert_cifs_to_strs(filenames, str_file=None, data="all", work=False):
     """
     Helper function to keep the creation of STRs consistent between the commandline and GUI versions
 
@@ -178,7 +179,7 @@ def convert_cifs_to_strs(filenames, str_file=None, data="all"):
     """
     for file in filenames:
         try:
-            ciftostr.write_str(file, str_file, data)
+            ciftostr.write_str(file, str_file, data, work)
             print("--------------------")
         except Exception as e:  # just print the exception and keep going
             print(e)
@@ -207,12 +208,12 @@ def main(argv=sys.argv):
         sys.exit()
 
     filenames = []
-    if argv[1] == "--jedit":
+    if argv[1] in ["--jedit", "--jwork"]:
         print("jEdit mode activated!!")
 
         print("The commands I received were")
         for arg in argv:
-            print(f"{arg} ", end=" ")
+            print(f"{arg}\t", end=" ")
         print("\n")
 
         for i in range(2, len(argv) - 1):
@@ -222,12 +223,17 @@ def main(argv=sys.argv):
         # delete the contents of the strname file, if it exists
         with open(strname, 'w') as f:
             f.write("")
-
-        convert_cifs_to_strs(filenames, str_file=strname, data="append")
+        if argv[1] =="--jedit":
+            convert_cifs_to_strs(filenames, str_file=strname, data="append")
+        else:
+            convert_cifs_to_strs(filenames, str_file=strname, data="append", work=True)
+    elif argv[1] in ["--work"]:
+        for i in range(2, len(argv)):
+            filenames += glob(argv[i])
+        convert_cifs_to_strs(filenames, work=True)  # this does the actual CIF to STR conversion
     else:
         for i in range(1, len(argv)):
             filenames += glob(argv[i])
-
         convert_cifs_to_strs(filenames)  # this does the actual CIF to STR conversion
 
     return 0

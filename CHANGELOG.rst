@@ -2,6 +2,13 @@
 Changelog
 =========
 
+0.1.2 (2022-02-01)
+------------------
+
+* Given zero values for B_iso are now ignored.
+* Added an option to add some work-related options.
+
+
 0.1.1 (2022-01-05)
 ------------------
 
