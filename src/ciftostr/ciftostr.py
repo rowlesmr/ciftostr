@@ -35,7 +35,7 @@ def write_str(cif_file, str_file=None, data="all", work=False):
         None. Writes file to disk.
      """
     print(f"Now reading {cif_file}.")
-    cif = CifFile.ReadCif(cif_file, permissive=True)
+    cif = CifFile.ReadCif(cif_file, permissive=False)
 
     if data == "first":
         data_keys = [cif.keys()[0]]
@@ -165,11 +165,17 @@ def val_to_frac(s):
         A single string, with fractions representing 1/6, 1/3, 2/3, or 5/6
     """
     ONE_SIXTH = ["0.1666", "0.16666", "0.166666", "0.1666666",
-                 "0.1667", "0.16667", "0.166667", "0.1666667"]
-    ONE_THIRD = ["0.3333", "0.33333", "0.333333", "0.3333333"]
+                 "0.1667", "0.16667", "0.166667", "0.1666667",
+                 ".1666", ".16666", ".166666", ".1666666",
+                 ".1667", ".16667", ".166667", ".1666667"]
+    ONE_THIRD = ["0.3333", "0.33333", "0.333333", "0.3333333",
+                 ".3333", ".33333", ".333333", ".3333333"]
     TWO_THIRD = ["0.6666", "0.66666", "0.666666", "0.6666666",
-                 "0.6667", "0.66667", "0.666667", "0.6666667"]
-    FIVE_SIXTH = ["0.8333", "0.83333", "0.833333", "0.8333333"]
+                 "0.6667", "0.66667", "0.666667", "0.6666667",
+                 ".6666", ".66666", ".666666", ".6666666",
+                 ".6667", ".66667", ".666667", ".6666667"]
+    FIVE_SIXTH = ["0.8333", "0.83333", "0.833333", "0.8333333",
+                  ".8333", ".83333", ".833333", ".8333333"]
     NEG_ONE_SIXTH = [f"-{s}" for s in ONE_SIXTH]
     NEG_ONE_THIRD = [f"-{s}" for s in ONE_THIRD]
     NEG_TWO_THIRD = [f"-{s}" for s in TWO_THIRD]
@@ -266,7 +272,7 @@ def pad_string_list(l, pad="post"):
         return None
 
     if any(s.startswith("-") for s in l):  # Prepend the string if it looks like a negative number
-        l = [" " + s if not s.startswith("-") else s for s in l]
+        l = [s if s.startswith("-") else f" {s}" for s in l]
 
     # what is the max str len?
     max_len = 0
@@ -300,9 +306,9 @@ def pad_string(s, d, pad):
 
     while len(s) < d:
         if pad == "post":
-            s = s + " "
+            s = f'{s} '
         elif pad == "pre":
-            s = " " + s
+            s = f" {s}"
         else:
             return s
     return s
@@ -369,10 +375,10 @@ def clean_filename(s):
                      "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", ".", "..")
 
     if s.upper() in ILLEGAL_NAMES:
-        s = s + "_"
+        s = f"{s}_"
 
     if s.endswith("."):
-        s = s[:-1] + "_"
+        s = f"{s[:-1]}_"
 
     return re.sub("[\\\\/:*?\"<>|\s]", "_", s)
 
@@ -466,19 +472,19 @@ def get_unitcell(cif, data, work=False):
     ga = float(ga_s)
 
     s = ""
-    if a == b and b == c:  # cubic or rhombohedral
+    if a == b == c:  # cubic or rhombohedral
         if al == be and be == ga and al == float("90"):  # cubic
             s = f"\t\tCubic({a_s})\t'{a_s}"
         if al == be and be == ga and al != float("90"):  # rhombohedral
             s = f"\t\tRhombohedral({a_s}, {al_s})\t'{a_s}, {al_s}"
 
-    elif a == b and b != c:  # tetragonal or hexagonal/trigonal
+    elif a == b:  # tetragonal or hexagonal/trigonal
         if al == be and be == ga and al == float("90"):  # tetragonal
             s = f"\t\tTetragonal({a_s}, {c_s})\t'{a_s}, {c_s}"
         if al == be and al == float("90") and ga == float("120"):  # hexagonal or trigonal
             s = f"\t\tHexagonal({a_s}, {c_s})\t'{a_s}, {c_s}"
 
-    elif a != b and a != c and b != c:  # ortho, mono, tric
+    elif a != c and b != c:  # ortho, mono, tric
         if al == be and be == ga and al == float("90"):  # ortho
             s = f"\t\ta {a_s}\t'{a_s}\n\t\tb {b_s}\t'{b_s}\n\t\tc {c_s}\t'{c_s}"
         if al != be and al != ga and be != ga:  # tric
@@ -490,7 +496,6 @@ def get_unitcell(cif, data, work=False):
         if be == ga and be != al and be == float("90"):  # mono_3
             s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tal {al_s}\t'{al_s}"
 
-    # to catch everything else
     else:
         s = f"\t\ta {a_s}\t'{a_s}\n\t\tb {b_s}\t'{b_s}\n\t\tc {c_s}\t'{c_s}\n\t\tal {al_s}\t'{al_s}\n\t\tbe {be_s}\t'{be_s}\n\t\tga {ga_s}\t'{ga_s}"
 
@@ -840,6 +845,7 @@ def get_beq(cif, data):
     u_iso = make_b_dict(cif, data, "u_iso")
     b_aniso = make_b_dict(cif, data, "b_aniso")
     u_aniso = make_b_dict(cif, data, "u_aniso")
+    be_aniso = make_b_dict(cif, data, "be_aniso")
 
     # check all the dictionaries in my order of preference to get the ADP value.
     r = []
@@ -858,7 +864,11 @@ def get_beq(cif, data):
                         b = u_aniso[key]
                         print(f"beq value for site {key} calculated from anisotropic U values.")
                     except KeyError:
-                        b = None
+                        try:
+                            b = be_aniso[key]
+                            print(f"beq value for site {key} calculated from anisotropic beta values.")
+                        except KeyError:
+                            b = None
 
         if b is None or float(b) == 0.0:  # missing or zero value
             print(f"Warning! beq value missing or zero for site {key}! Default value of 1 entered")
@@ -906,6 +916,9 @@ def make_b_dict(cif, data, b_type):
         iso = False
     elif b_type == "u_aniso":
         f = get_u_aniso
+        iso = False
+    elif b_type == "be_aniso":
+        f = get_beta_aniso_as_b
         iso = False
     else:
         raise ValueError(f'Invalid choice. Got "{b_type}", expecting "b_iso", "u_iso", "b_aniso", or "u_aniso".')
@@ -976,3 +989,113 @@ def get_u_aniso(cif, data):
     U33 = [float(strip_brackets(i)) for i in cif[data]["_atom_site_aniso_U_33"]]
 
     return [convert_u_to_b(str((u11 + u22 + u33) / 3.0)) for u11, u22, u33 in zip(U11, U22, U33)]
+
+
+def get_beta_aniso_as_b(cif, data):
+    """
+    Returns a list of strings giving the equivalent isotropic atomic displacement parameters, B.
+    Converts beta values to B values, and then takes the average value of "_atom_site_aniso_beta_11", "_22", and "_33".
+
+    beta_11 = B_11 * (a*^2/4)
+    beta_22 = B_22 * (b*^2/4)
+    beta_33 = B_33 * (c*^2/4)
+    beta_23 = B_23 * ((b* c*)/4)
+    beta_31 = B_31 * ((c* a*)/4)
+    beta_23 = B_23 * ((a* b*)/4)
+
+    a* == reciprocal cell length  - ie |ã*|
+
+    Used by getAniso().
+
+    Args:
+        cif: a PyCifRW dictionary
+        data: the key value for a data block in the CIF
+    Returns:
+        A list containing the isotropic atomic displacement parameters, B, of all atomic sites.
+    Raises:
+        KeyError: if any of the keys "_atom_site_aniso_B_11", "_22", or "_33" is not present.
+    """
+    # convert the str lists to float lists
+    be11 = [float(strip_brackets(i)) for i in cif[data]["_atom_site_aniso_beta_11"]]
+    be22 = [float(strip_brackets(i)) for i in cif[data]["_atom_site_aniso_beta_22"]]
+    be33 = [float(strip_brackets(i)) for i in cif[data]["_atom_site_aniso_beta_33"]]
+
+    a = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_length_a"))
+    b = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_length_b"))
+    c = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_length_c"))
+    al = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_angle_alpha"))
+    be = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_angle_beta"))
+    ga = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_angle_gamma"))
+
+    as_v, bs_v, cs_v = make_reciprocal_unit_cell_vectors(a, b, c, al, be, ga)
+
+    # convert be values to b values
+    be11 = [4 * v / magnitude(as_v) ** 2 for v in be11]
+    be22 = [4 * v / magnitude(bs_v) ** 2 for v in be22]
+    be33 = [4 * v / magnitude(cs_v) ** 2 for v in be33]
+
+    b_equiv = [(b11 + b22 + b33) / 3.0 for b11, b22, b33 in zip(be11, be22, be33)]  # get the average of the three values
+    b_equiv = [str(round(float(i), 3)) for i in b_equiv]  # round to 3 d.p.
+
+    return b_equiv
+
+
+def make_reciprocal_unit_cell_vectors(a, b, c, al, be, ga):
+    a_v, b_v, c_v = make_unit_cell_vectors(a, b, c, al, be, ga)
+    V = triple_product(a_v, b_v, c_v)
+
+    cas_v = cross_product(b_v, c_v)
+    cbs_v = cross_product(c_v, a_v)
+    ccs_v = cross_product(a_v, b_v)
+
+    as_v = cas_v[0] / V, cas_v[1] / V, cas_v[2] / V
+    bs_v = cbs_v[0] / V, cbs_v[1] / V, cbs_v[2] / V
+    cs_v = ccs_v[0] / V, ccs_v[1] / V, ccs_v[2] / V
+
+    return as_v, bs_v, cs_v
+
+
+def make_unit_cell_vectors(a, b, c, al, be, ga):
+    # convert strings to float
+    a_f = float(strip_brackets(a))
+    b_f = float(strip_brackets(b))
+    c_f = float(strip_brackets(c))
+    al_f = math.radians(float(strip_brackets(al)))
+    be_f = math.radians(float(strip_brackets(be)))
+    ga_f = math.radians(float(strip_brackets(ga)))
+
+    # make unit cell vectors as tuples
+    a_v = a_f, 0, 0
+    b_v = b_f * math.cos(ga_f), b_f * math.sin(ga_f), 0
+    n = (math.cos(al_f) - (math.cos(ga_f) * math.cos(be_f))) / math.sin(ga_f)
+    c_v = c_f * math.cos(be_f), c_f * n, math.sqrt(math.sin(al_f) ** 2 - n ** 2)
+
+    return a_v, b_v, c_v
+
+
+def cross_product(a, b):
+    return a[1] * b[2] - a[2] * b[1], \
+           a[2] * b[0] - a[0] * b[2], \
+           a[0] * b[1] - a[1] * b[0]
+
+
+def dot_product(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def triple_product(a, b, c):
+    return dot_product(a, cross_product(b, c))
+
+
+def magnitude(a):
+    return math.sqrt(a[0]**2 + a[1]**2 + a[2]**2)
+
+
+if __name__ == "__main__":
+    s = "Lithium titanium   oxide (2.39/3.4/8)"
+    print(s)
+    s = re.sub("[^a-zA-Z0-9_]+", "_", s)
+    s = re.sub("[_]+", "_", s)
+
+    print(s)
+

@@ -28,7 +28,7 @@ import sys
 import PySimpleGUI as sg
 import ciftostr
 
-CITATION = f"Matthew R. Rowles, CIFtoSTR, https://github.com/rowlesmr/ciftostr, version: {ciftostr.__version__}"
+CITATION = f"Matthew R. Rowles, CIFtoSTR, https://github.com/rowlesmr/ciftostr, version: " #{ciftostr.__version__}"
 
 HELP = \
     """
