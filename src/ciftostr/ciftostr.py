@@ -7,6 +7,7 @@ Created on Mon Apr 19 17:10:25 2021
 @author: Matthew Rowles
 """
 
+
 # pylint: disable=line-too-long, invalid-name.
 
 import math
@@ -14,10 +15,160 @@ import re
 import os
 import copy
 import CifFile
+from typing import List, Tuple, Union, Dict
+import contextlib
 
 
-# TODO: add test
-def write_str(cif_file, str_file=None, data="all", work=False):
+class Vector3:
+    def __init__(self, u: float, v: float, w: float):
+        self.u = u
+        self.v = v
+        self.w = w
+
+    def cross_product(self, other: 'Vector3') -> 'Vector3':
+        return Vector3(self.v * other.w - self.w * other.v,
+                       self.w * other.u - self.u * other.w,
+                       self.u * other.v - self.v * other.u)
+
+    def cross(self, other: 'Vector3') -> 'Vector3':
+        return self.cross_product(other)
+
+    def dot_product(self, other: 'Vector3') -> float:
+        return self.u * other.u + self.v * other.v + self.w * other.w
+
+    def dot(self, other: 'Vector3') -> float:
+        return self.dot_product(other)
+
+    def square_magnitude(self) -> float:
+        return self.u ** 2 + self.v ** 2 + self.w ** 2
+
+    def magnitude(self) -> float:
+        return math.sqrt(self.square_magnitude())
+
+    def __abs__(self) -> float:
+        return self.magnitude()
+
+    def __add__(self, other: 'Vector3') -> 'Vector3':
+        if isinstance(other, Vector3):
+            return Vector3(self.u + other.u, self.v + other.v, self.w + other.w)
+        else:
+            return NotImplemented
+
+    def __sub__(self, other: 'Vector3') -> 'Vector3':
+        if isinstance(other, Vector3):
+            return Vector3(self.u - other.u, self.v - other.v, self.w - other.w)
+        else:
+            return NotImplemented
+
+    def __mul__(self, other: (int, float)) -> 'Vector3':
+        if isinstance(other, (int, float)):
+            return Vector3(self.u * other, self.v * other, self.w * other)
+        else:
+            return NotImplemented
+
+    __rmul__ = __mul__
+
+    def __truediv__(self, other: (int, float)) -> 'Vector3':
+        if isinstance(other, (int, float)):
+            return Vector3(self.u / other, self.v / other, self.w / other)
+        else:
+            return NotImplemented
+
+    def __floordiv__(self, other: (int, float)) -> 'Vector3':
+        if isinstance(other, (int, float)):
+            return Vector3(self.u // other, self.v // other, self.w // other)
+        else:
+            return NotImplemented
+
+    def __repr__(self):
+        return f"Vector3({self.u}, {self.v}, {self.w})"
+
+
+class UnitCell:
+    def __init__(self, a: str, b: str, c: str, al: str, be: str, ga: str):
+        self.a = a
+        self.b = b
+        self.c = c
+        self.al = al
+        self.be = be
+        self.ga = ga
+
+        self.a_f = float(a)
+        self.b_f = float(b)
+        self.c_f = float(c)
+        self.al_f = float(al)
+        self.be_f = float(be)
+        self.ga_f = float(ga)
+
+        self.symmetry = self.find_symmetry()
+
+    def __str__(self):
+        return f"a {self.a} b {self.b} c {self.c}\nal {self.al} be {self.be} ga {self.ga}"
+
+    def __getitem__(self, item: str) -> str:
+        if item == "a":
+            return self.a
+        elif item == "b":
+            return self.b
+        elif item == "c":
+            return self.c
+        elif item == "al":
+            return self.al
+        elif item == "be":
+            return self.be
+        elif item == "ga":
+            return self.ga
+        else:
+            raise ValueError(f"Got {item=}. Was expecting 'a', 'b', 'c', 'al', 'be', or 'ga'.")
+
+    def find_symmetry(self) -> str:
+
+        if all_close(self.a_f, self.b_f, self.c_f) and all_close(self.al_f, self.be_f, self.ga_f):
+            return "Cubic" if all_close(self.al_f, float("90.0")) else "Rhombohedral"
+
+        elif all_close(self.a_f, self.b_f) and all_close(self.al_f, self.be_f, float("90.0")):
+            if all_close(self.ga_f, float("90.0")):
+                return "Tetragonal"
+            if all_close(self.ga_f, float("120.0")):
+                return "Hexagonal"  # or trigonal, but I can't tell just from cell prms, and this matches the TOPAS macro
+
+        elif not all_close(self.a_f, self.b_f, self.c_f) and all_close(self.al_f, self.be_f, self.ga_f, float("90.0")):
+            return "Orthorhombic"
+
+        if all_close(self.al_f, self.ga_f, float("90.0")) and not all_close(self.be_f, float("90.0")):
+            return "Monoclinic_be"
+        elif all_close(self.al_f, self.be_f, float("90.0")) and not all_close(self.ga_f, float("90.0")):
+            return "Monoclinic_ga"
+        elif all_close(self.ga_f, self.be_f, float("90.0")) and not all_close(self.al_f, float("90.0")):
+            return "Monoclinic_al"
+
+        return "Triclinic"
+
+    def topas_str(self, sym: str = None) -> str:
+        sym = self.symmetry if sym is None else sym
+
+        if sym == "Cubic":
+            return f"\t\tCubic({self.a})\t'{self.a}"
+        elif sym == "Rhombohedral":
+            return f"\t\tRhombohedral({self.a}, {self.al})\t'{self.a}, {self.al}"
+        elif sym == "Tetragonal":
+            return f"\t\tTetragonal({self.a}, {self.c})\t'{self.a}, {self.c}"
+        elif sym == "Hexagonal":
+            return f"\t\tHexagonal({self.a}, {self.c})\t'{self.a}, {self.c}"
+        elif sym == "Orthorhombic":
+            return f"\t\ta {self.a}\t'{self.a}\n\t\tb {self.b}\t'{self.b}\n\t\tc {self.c}\t'{self.c}"
+        elif sym[-3:] in ["_al", "_be", "_ga"]:
+            ang = sym[-2:]
+            return f"\t\ta  {self.a}\t'{self.a}\n\t\tb  {self.b}\t'{self.b}\n\t\tc  {self.c}\t'{self.c}\n\t\t{ang} {self[ang]}\t'{self[ang]}"
+        else:
+            return f"\t\ta {self.a}\t'{self.a}\n\t\tb {self.b}\t'{self.b}\n\t\tc {self.c}\t'{self.c}\n\t\tal {self.al}\t'{self.al}\n\t\tbe {self.be}\t'{self.be}\n\t\tga {self.ga}\t'{self.ga}"
+
+
+def all_close(*vals: float, rel_tol=1e-09, abs_tol=0.0):
+    return all(math.isclose(vals[0], vals[i], rel_tol=rel_tol, abs_tol=abs_tol) for i in range(1, len(vals)))
+
+
+def write_str(cif_file: str, str_file=None, data: str = "all", work: bool=False):
     """
     Writes all structures in a given CIF to one file each from a given cif file..
 
@@ -59,7 +210,7 @@ def write_str(cif_file, str_file=None, data="all", work=False):
             continue
 
         if get_new_output_filename and update_output_filename:
-            str_file = clean_filename(get_phasename(cif, d)) + ".str"
+            str_file = f"{clean_filename(get_phasename(cif, d))}.str"
 
         update_output_filename = not append_data  # if I'm appending, I don't want to update the filename each time
 
@@ -74,8 +225,7 @@ def write_str(cif_file, str_file=None, data="all", work=False):
     print("Done.")
 
 
-# TODO: add test
-def create_str(cif, data, work=False):
+def create_str(cif: Dict, data: str, work=False) -> str:
     """
     Creates a single string formatted as an STR representing the given data block in the cif.
 
@@ -99,14 +249,14 @@ def create_str(cif, data, work=False):
         s += "\t\tCS_L( ,200)\n"
     s += "\t\tMVW(0,0,0)\n"
     s += "\t\tscale @ 0.0001\n"
-    s += get_unitcell(cif, data, work) + "\n"
+    s += get_unitcell(cif, data) + "\n"
     s += f'\t\tspace_group "{get_spacegroup(cif, data)}"\n'
     s += get_atom_sites_string(cif, data) + '\n'
 
     return s
 
 
-def strip_brackets(s):
+def strip_brackets(s: str) -> Union[str, None]:
     """
     Strips the brackets at the end of a string.
     The main use case is to remove the error values, eg '0.123(45)' --> '0.123'.
@@ -120,15 +270,10 @@ def strip_brackets(s):
     if s is None:
         return None
 
-    try:
-        bracket = s.index("(")
-    except ValueError:  # if there isn't a bracket, just keep going.
-        bracket = len(s)
-
-    return s[:bracket]
+    return s[:m] if (m := s.find("(")) != -1 else s
 
 
-def change_NA_value(s):
+def change_NA_value(s: str) -> Union[str, None]:
     """
     If a string consists of a single question mark ('?') or full stop ('.'),
     it is replaced with a None
@@ -141,12 +286,10 @@ def change_NA_value(s):
     Returns:
         A string, with None in place of a single question mark or full stop
      """
-    if s in ("?", "."):
-        s = None
-    return s
+    return None if s in {"?", "."} else s
 
 
-def val_to_frac(s):
+def val_to_frac(s: str) -> Union[str, None]:
     """
     Checks a single string consisting of numeric values for
     values which are consistent with fractional values.
@@ -155,7 +298,7 @@ def val_to_frac(s):
     representation is altered to be a fractional representation.
 
     TOPAS requires atoms on special positions with values that have non-terminating
-    decimal representations to have be represented as fractions.
+    decimal representations to be represented as fractions.
 
     None is returned as None
 
@@ -164,63 +307,26 @@ def val_to_frac(s):
     Returns:
         A single string, with fractions representing 1/6, 1/3, 2/3, or 5/6
     """
-    ONE_SIXTH = ["0.1666", "0.16666", "0.166666", "0.1666666",
-                 "0.1667", "0.16667", "0.166667", "0.1666667",
-                 ".1666", ".16666", ".166666", ".1666666",
-                 ".1667", ".16667", ".166667", ".1666667"]
-    ONE_THIRD = ["0.3333", "0.33333", "0.333333", "0.3333333",
-                 ".3333", ".33333", ".333333", ".3333333"]
-    TWO_THIRD = ["0.6666", "0.66666", "0.666666", "0.6666666",
-                 "0.6667", "0.66667", "0.666667", "0.6666667",
-                 ".6666", ".66666", ".666666", ".6666666",
-                 ".6667", ".66667", ".666667", ".6666667"]
-    FIVE_SIXTH = ["0.8333", "0.83333", "0.833333", "0.8333333",
-                  ".8333", ".83333", ".833333", ".8333333"]
-    NEG_ONE_SIXTH = [f"-{s}" for s in ONE_SIXTH]
-    NEG_ONE_THIRD = [f"-{s}" for s in ONE_THIRD]
-    NEG_TWO_THIRD = [f"-{s}" for s in TWO_THIRD]
-    NEG_FIVE_SIXTH = [f"-{s}" for s in FIVE_SIXTH]
-
-    ONE_SIXTH_FRAC = ["=1/6;"] * len(ONE_SIXTH)
-    ONE_THIRD_FRAC = ["=1/3;"] * len(ONE_THIRD)
-    TWO_THIRD_FRAC = ["=2/3;"] * len(TWO_THIRD)
-    FIVE_SIXTH_FRAC = ["=5/6;"] * len(FIVE_SIXTH)
-    NEG_ONE_SIXTH_FRAC = ["=-1/6;"] * len(ONE_SIXTH)
-    NEG_ONE_THIRD_FRAC = ["=-1/3;"] * len(ONE_THIRD)
-    NEG_TWO_THIRD_FRAC = ["=-2/3;"] * len(TWO_THIRD)
-    NEG_FIVE_SIXTH_FRAC = ["=-5/6;"] * len(FIVE_SIXTH)
-
-    ONE_SIXTH_d = dict(zip(ONE_SIXTH + NEG_ONE_SIXTH, ONE_SIXTH_FRAC + NEG_ONE_SIXTH_FRAC))
-    ONE_THIRD_d = dict(zip(ONE_THIRD + NEG_ONE_THIRD, ONE_THIRD_FRAC + NEG_ONE_THIRD_FRAC))
-    TWO_THIRD_d = dict(zip(TWO_THIRD + NEG_TWO_THIRD, TWO_THIRD_FRAC + NEG_TWO_THIRD_FRAC))
-    FIVE_SIXTH_d = dict(zip(FIVE_SIXTH + NEG_FIVE_SIXTH, FIVE_SIXTH_FRAC + NEG_FIVE_SIXTH_FRAC))
-
-    fracs = {}
-    fracs.update(ONE_SIXTH_d)
-    fracs.update(ONE_THIRD_d)
-    fracs.update(TWO_THIRD_d)
-    fracs.update(FIVE_SIXTH_d)
-
-    r = None
-
     if s is None:
-        return r
+        return None
 
-    try:
-        r = fracs[s]
-        print(f"Fractional atomic coordinate '{s}' detected and replaced with '{r}'.")
-    except KeyError:
-        r = s  # s isn't a fraction. probably.
+    fraction_patterns_strings = ((re.compile(r"^([-+]?)0?\.16{2,}[67]$"), "1/6"),
+                                 (re.compile(r"^([-+]?)0?\.3{4,}$"),      "1/3"),
+                                 (re.compile(r"^([-+]?)0?\.6{3,}[67]$"),  "2/3"),
+                                 (re.compile(r"^([-+]?)0?\.83{3,}$"),     "5/6"))
 
-    return r
+    for pattern, fraction in fraction_patterns_strings:
+        if m := pattern.match(s):
+            sign = m.group(1)
+            return f"={sign}{fraction};"
+    return s  # if we get here, it didn't match anything, so return what we were given
 
 
-def get_dict_entry_copy(dct, *keys, default=None):
+def get_dict_entry_copy(dct: Dict, *keys: str, default=None) -> Union[Dict, List[str], str]:
     """
     Returns a deepcopy of the first dictionary value to match from an arbitrary number of given keys.
     If there is no match, the default value is returned.
     #https://stackoverflow.com/a/67187811/36061
-
 
     Args:
         dct: A dictionary
@@ -230,14 +336,12 @@ def get_dict_entry_copy(dct, *keys, default=None):
         A deepcopy of the dictionary value associated with the first key to match, or the default value.
      """
     for key in keys:
-        try:
+        with contextlib.suppress(KeyError):
             return get_dict_entry_copy_throw_error(dct, key)
-        except KeyError:
-            pass
     return default
 
 
-def get_dict_entry_copy_throw_error(dct, key):
+def get_dict_entry_copy_throw_error(dct: Dict, key: str) -> Union[Dict, List[str], str]:
     """
     Returns a deepcopy of the dictionary value from a matching key.
 
@@ -253,14 +357,14 @@ def get_dict_entry_copy_throw_error(dct, key):
     return copy.deepcopy(dct[key])
 
 
-def pad_string_list(l, pad="post"):
+def pad_string_list(lst: List[str], pad="post") -> Union[List[str], None]:
     """
-    Given a list of atomic ordinates, labels, or the like, pad the length of the strings
+    Given a list of string, pad the length of the strings
     such that they are all the same
 
     Parameters
     ----------
-    l : list of strings
+    lst : list of strings
     pad: is it a "post" (after the string) pad, or a "pre" (before the string) pad?
 
     Returns
@@ -268,24 +372,24 @@ def pad_string_list(l, pad="post"):
     List of strings, all of the same length
 
     """
-    if l is None:
+    if lst is None:
         return None
 
-    if any(s.startswith("-") for s in l):  # Prepend the string if it looks like a negative number
-        l = [s if s.startswith("-") else f" {s}" for s in l]
+    if any(s.startswith("-") for s in lst):  # Prepend the string if it looks like a negative number
+        lst = [s if s.startswith("-") else f" {s}" for s in lst]
 
     # what is the max str len?
     max_len = 0
-    for s in l:
+    for s in lst:
         if len(s) > max_len:
             max_len = len(s)
 
-    l = [pad_string(s, max_len, pad) for s in l]
+    lst = [pad_string(s, max_len, pad) for s in lst]
 
-    return l
+    return lst
 
 
-def pad_string(s, d, pad):
+def pad_string(s: str, d: int, pad: str) -> Union[str, None]:
     """
     Add spaces to the end or start  of a string until it is the length given by d
     If len is already more than d, it just returns s
@@ -304,33 +408,15 @@ def pad_string(s, d, pad):
     if s is None:
         return None
 
-    while len(s) < d:
-        if pad == "post":
-            s = f'{s} '
-        elif pad == "pre":
-            s = f" {s}"
-        else:
-            return s
-    return s
+    if pad == "post":
+        return f"{s:{d}}"
+    elif pad == "pre":
+        return f"{s:>{d}}"
+    else:
+        return f"{s}"
 
 
-def count_nones(l):
-    """
-    Counts the number of Nones in an iterable (eg list)
-
-    Parameters
-    ----------
-    l : an iterable
-
-    Returns
-    -------
-    num : integer with the number of Nones is the iterable
-
-    """
-    return sum(s is None for s in l)
-
-
-def clean_phasename(s):
+def clean_phasename(s: str) -> str:
     """
     Removes new lines, carriage returns, and leading/trailing whitespace from a
     string representing a phase name.
@@ -345,15 +431,15 @@ def clean_phasename(s):
     return s.strip().replace('\n', '').replace('\r', '').replace("'", "_")
 
 
-def clean_filename(s):
+def clean_filename(s: str) -> str:
     """
     Replaces illegal characters from a string which is to be used as a filename.
     This doesn't deal with the path, just the name. Also, not the extension.
 
-    eg 'string' could be used to construct 'C:\important\string.cif' at a later
+    eg 'string' could be used to construct 'C:\\important\\string.cif' at a later
     point in the program.
 
-    / \ | : * ? " < >  are replaced by "_"
+    / \\ | : * ? " < >  are replaced by "_"
 
     Whitespace is also replaced by "_"
 
@@ -380,15 +466,19 @@ def clean_filename(s):
     if s.endswith("."):
         s = f"{s[:-1]}_"
 
-    return re.sub("[\\\\/:*?\"<>|\s]", "_", s)
+    s = re.sub(r"[/\\:*?\"'<>|\s]", "_", s)  # remove all the illegal chars
+    s = re.sub(r"__+", "_", s)  # remove multiple underscores
+    s = re.sub(r"^_", "", s)  # remove a leading underscore
+
+    return s
 
 
-def get_phasename(cif, data):
+def get_phasename(cif: Dict, data: str) -> str:
     """
     Returns a string to be used as the name of the phase.
 
     The name is taken from (in order of preference):
-        "_chemical_name_mineral", "_chemical_name_common",
+        "_pd_phase_name", "_chemical_name_mineral", "_chemical_name_common",
         "_chemical_name_systematic", or "_chemical_name_structure_type"
     The value of the data block is then appended to this value.
 
@@ -398,20 +488,18 @@ def get_phasename(cif, data):
     Returns:
         A string denoting the name of the phase
      """
-    phasename = get_dict_entry_copy(cif[data], "_chemical_name_mineral",
+    phasename = get_dict_entry_copy(cif[data], "_pd_phase_name",
+                                    "_chemical_name_mineral",
                                     "_chemical_name_common",
                                     "_chemical_name_systematic",
                                     "_chemical_name_structure_type",
                                     default="")
     phasename = clean_phasename(phasename)
 
-    r = ""
-    # check that all the types of non-name names are accounted for.
-    r = data if phasename in ("", ".", "?", None) else f"{phasename}_{data}"
-    return r
+    return data if phasename in ("", ".", "?", None) else f"{phasename}_{data}"
 
 
-def get_spacegroup(cif, data):
+def get_spacegroup(cif: Dict, data: str) -> str:
     """
     Returns a string to be used as the spacegroup.
 
@@ -432,26 +520,23 @@ def get_spacegroup(cif, data):
                                      "_symmetry_Int_Tables_number",
                                      "_space_group_IT_number",
                                      default="")
-    try:
-        _ = int(spacegroup)
+    if spacegroup.isdigit():
         print("Spacegroup given by number. Check that the SG setting matches that of the atom coordinates.")
-    except ValueError:
-        pass  # if it gets here, it wasn't a SG number...
 
     return spacegroup
 
 
-def get_unitcell(cif, data, work=False):
+def get_unitcell(cif: Dict, data: str, sym: str = None) -> str:
     """
     Returns a string giving the unit cell parameters of the structure.
     Some pattern matching is carried out to return TOPAS macros for
     unit cell prms, but no validation or space group consistency is done.
 
-    see also get_unitcell2() - it makes no attempt to pattern-match
-
     Args:
         cif: a PyCifRW dictionary
         data: the key value for a data block in the CIF
+        sym: Uses this symmetry to print out the results. Use "Triclinic" to print the general case.
+              Use None to let the symmetry be determined by the unit cell.
     Returns:
         A string containing the unit cell parameters in STR format.
     Raises:
@@ -464,68 +549,12 @@ def get_unitcell(cif, data, work=False):
     be_s = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_angle_beta"))
     ga_s = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_angle_gamma"))
 
-    a = float(a_s)
-    b = float(b_s)
-    c = float(c_s)
-    al = float(al_s)
-    be = float(be_s)
-    ga = float(ga_s)
+    unit_cell = UnitCell(a_s, b_s, c_s, al_s, be_s, ga_s)
 
-    s = ""
-    if a == b == c:  # cubic or rhombohedral
-        if al == be and be == ga and al == float("90"):  # cubic
-            s = f"\t\tCubic({a_s})\t'{a_s}"
-        if al == be and be == ga and al != float("90"):  # rhombohedral
-            s = f"\t\tRhombohedral({a_s}, {al_s})\t'{a_s}, {al_s}"
-
-    elif a == b:  # tetragonal or hexagonal/trigonal
-        if al == be and be == ga and al == float("90"):  # tetragonal
-            s = f"\t\tTetragonal({a_s}, {c_s})\t'{a_s}, {c_s}"
-        if al == be and al == float("90") and ga == float("120"):  # hexagonal or trigonal
-            s = f"\t\tHexagonal({a_s}, {c_s})\t'{a_s}, {c_s}"
-
-    elif a != c and b != c:  # ortho, mono, tric
-        if al == be and be == ga and al == float("90"):  # ortho
-            s = f"\t\ta {a_s}\t'{a_s}\n\t\tb {b_s}\t'{b_s}\n\t\tc {c_s}\t'{c_s}"
-        if al != be and al != ga and be != ga:  # tric
-            s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tal {al_s}\t'{al_s}\n\t\tbe {be_s}\t'{be_s}\n\t\tga {ga_s}\t'{ga_s}"
-        if al == be and al != ga and al == float("90"):  # mono_1
-            s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tga {ga_s}\t'{ga_s}"
-        if al == ga and al != be and al == float("90"):  # mono_2
-            s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tbe {be_s}\t'{be_s}"
-        if be == ga and be != al and be == float("90"):  # mono_3
-            s = f"\t\ta  {a_s}\t'{a_s}\n\t\tb  {b_s}\t'{b_s}\n\t\tc  {c_s}\t'{c_s}\n\t\tal {al_s}\t'{al_s}"
-
-    else:
-        s = f"\t\ta {a_s}\t'{a_s}\n\t\tb {b_s}\t'{b_s}\n\t\tc {c_s}\t'{c_s}\n\t\tal {al_s}\t'{al_s}\n\t\tbe {be_s}\t'{be_s}\n\t\tga {ga_s}\t'{ga_s}"
-
-    return s
+    return unit_cell.topas_str(sym)
 
 
-def get_unitcell2(cif, data):
-    """
-    Returns a string giving the unit cell parameters of the structure.
-    see also get_unitcell()
-
-    Args:
-        cif: a PyCifRW dictionary
-        data: the key value for a data block in the CIF
-    Returns:
-        A string containing the unit cell parameters in STR format.
-    Raises:
-        KeyError: if any of the unit cell parameters are not present in the datablock.
-    """
-    a = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_length_a"))
-    b = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_length_b"))
-    c = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_length_c"))
-    al = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_angle_alpha"))
-    be = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_angle_beta"))
-    ga = strip_brackets(get_dict_entry_copy_throw_error(cif[data], "_cell_angle_gamma"))
-
-    return f"\t\ta {a} b {b} c {c}\n\t\tal {al} be {be} ga {ga}"
-
-
-def get_atom_sites_string(cif, data):
+def get_atom_sites_string(cif: Dict, data: str) -> str:
     """
     Returns a string giving the site parameters for all of the sites in the CIF.
 
@@ -582,12 +611,12 @@ def get_atom_sites_string(cif, data):
     # ADPs
     b_iso = pad_string_list(get_beq(cif, data))
 
-    r = [make_atom_site_string(label, xf, yf, zf, atom, oc, b) + "\n" for label, xf, yf, zf, atom, oc, b in zip(labels, x, y, z, atoms, occ, b_iso)]
+    r = [make_atom_site_string(label, xf, yf, zf, atom, oc, b) for label, xf, yf, zf, atom, oc, b in zip(labels, x, y, z, atoms, occ, b_iso)]
 
-    return "".join(r)
+    return "\n".join(r)
 
 
-def make_atom_site_string(label, x, y, z, atom, occ, beq):
+def make_atom_site_string(label: str, x: str, y: str, z: str, atom: str, occ: str, beq: str) -> str:
     """
     Returns a string giving the site parameters necessary for TOPAS:
         "site _1_ num_posns 0 x _2_ y _3_ z _4_ occ _5_ _6_ beq _7_"
@@ -609,7 +638,7 @@ def make_atom_site_string(label, x, y, z, atom, occ, beq):
     return f"\t\tsite {label} num_posns 0\tx {x} y {y} z {z} occ {atom} {occ} beq {beq}"
 
 
-def convert_site_label_to_atom(s):
+def convert_site_label_to_atom(s: str) -> str:
     """
     Given a site label string, the first 2 or 1 characters are checked
     (case-sensitive) to see if they match an element symbols. If they do,
@@ -636,16 +665,16 @@ def convert_site_label_to_atom(s):
 
     WATER = ("Wat", "WAT", "wat")
 
-    r = s[0:3]  # take the first three characters, maybe you mean water?
+    r = s[:3]
     if r in WATER:
         print(f"Site label '{s}' probably means 'water'. Please check that this atom really is oxygen.")
         return "O"
 
-    r = s[0:2]  # take the first two characters
+    r = s[:2]
     if r in ELEMENTS:
         return r
 
-    r = s[0:1]  # take the first character
+    r = s[:1]
     if r in ELEMENTS:
         if r == "W":
             print(f"W detected for site '{s}'. Do you mean tungsten or oxygen from a water molecule? Please check.")
@@ -655,7 +684,7 @@ def convert_site_label_to_atom(s):
     return s  # if everything fails, just return what the label was
 
 
-def fix_atom_type(a, orig_site_label=None):
+def fix_atom_type(a: str, orig_site_label=None) -> str:
     """
     Given an atom type from "_atom_site_type_symbol", any charge given is sometimes the wrong
     way around for TOPAS to handle. This function uses a regex to switch and given charge
@@ -675,16 +704,17 @@ def fix_atom_type(a, orig_site_label=None):
 
     Args:
         a: a string to denoting the atom type, with or without a charge
+        orig_site_label: the site label for this atom, so I can use it to print error msgs, if needed.
 
     Returns:
         A string containing the atom type with the charge in the correct order, if one is given.
     """
-    regex = re.search("([A-Za-z]{1,2})(\d{0,2})([+-]{0,1})(\d{0,2})", a)
+    regex = re.search(r"^([A-Z][a-z]?)(\d{0,2})([+-]?)(\d{0,2})$", a)
 
-    symbol = regex.group(1)
-    charge = regex.group(2)
-    sign = regex.group(3)
-    digit = regex.group(4)  # if there is a trailing digit, then that is probably the charge
+    symbol = regex[1]
+    charge = regex[2]
+    sign = regex[3]
+    digit = regex[4]  # if there is a trailing digit, then that is probably the charge
 
     if charge == "0":  # ie Si0+ is a valid symbol, but it is a neutral atom
         charge = ""
@@ -700,7 +730,7 @@ def fix_atom_type(a, orig_site_label=None):
     return convert_atom_type_to_topas(symbol + sign + charge, orig_site_label)
 
 
-def convert_atom_type_to_topas(a, orig_site_label=None):
+def convert_atom_type_to_topas(a: str, orig_site_label=None) -> str:
     """
     Given an atom type in the correct TOPAS site format, the CIF dictionary can allow charges
     for which there are no scattering factors..
@@ -711,6 +741,7 @@ def convert_atom_type_to_topas(a, orig_site_label=None):
 
     Args:
         a: a string to denoting the atom type, with or without a charge
+        orig_site_label: the site label for this atom, so I can use it to print error msgs, if needed.
 
     Returns:
         A string containing the atom type with the charge in the correct order, if one is given.
@@ -740,20 +771,17 @@ def convert_atom_type_to_topas(a, orig_site_label=None):
         return a
 
     # if we get here, the atom doesn't exist in the tuple.
-    regex = re.search("([A-Za-z]{1,2})([+-]{0,1})(\d{0,2})", a)  # Cu+2
-    symbol = regex.group(1)
+    regex = re.search(r"^([A-Z][a-z]?)([+-]?)(\d{0,2})$", a)  # Cu+2
+    symbol = regex[1]
 
-    if orig_site_label is not None:
-        insert_text = f" in site {orig_site_label}"
-    else:
-        insert_text = ""
+    insert_text = "" if orig_site_label is None else f" in site {orig_site_label}"
 
     print(f"{a} is not a legal TOPAS scattering factor. Atom{insert_text} replaced with {symbol}.")
 
     return symbol
 
 
-def get_b_iso(cif, data):
+def get_b_iso(cif: Dict, data: str) -> List[str]:
     """
     Returns a list of strings giving the isotropic atomic displacement parameters, B, of
     all atomic sites taken from "_atom_site_B_iso_or_equiv".
@@ -768,16 +796,10 @@ def get_b_iso(cif, data):
     Raises:
         KeyError: if the key "_atom_site_B_iso_or_equiv" is not present.
     """
-    b_iso = [change_NA_value(strip_brackets(i)) for i in cif[data]["_atom_site_B_iso_or_equiv"]]
-
-    num = count_nones(b_iso)
-    if num > 0:
-        print(f"{num} missing Biso values.")
-
-    return b_iso
+    return [change_NA_value(strip_brackets(i)) for i in cif[data]["_atom_site_B_iso_or_equiv"]]
 
 
-def convert_u_to_b(s):
+def convert_u_to_b(s: str) -> Union[str, None]:
     """
     Take a string representing a U value and return a string representing a B value
     B = 8*Pi^2 * U
@@ -789,18 +811,17 @@ def convert_u_to_b(s):
     Returns
     -------
     A string representing a B value. Could be None.
-
     """
     if s is None:
         return None
 
     s = float(s)
     s *= 8 * math.pi ** 2
-    s = str(round(float(s), 3))  # round B value to 3 d.p.
+    s = str(round(s, 3))  # round B value to 3 d.p.
     return s
 
 
-def get_u_iso(cif, data):
+def get_u_iso(cif: Dict, data: str) -> List[str]:
     """
     Returns a list of strings giving the isotropic atomic displacement parameters, B, of
     all atomic sites taken from "_atom_site_U_iso_or_equiv" found by multiplying their
@@ -816,16 +837,11 @@ def get_u_iso(cif, data):
     Raises:
         KeyError: if the key "_atom_site_U_iso_or_equiv" is not present.
     """
-    b_iso = [convert_u_to_b(change_NA_value(strip_brackets(i))) for i in cif[data]["_atom_site_U_iso_or_equiv"]]
 
-    num = count_nones(b_iso)
-    if num > 0:
-        print(f"{num} missing Uiso values.")
-
-    return b_iso
+    return [convert_u_to_b(change_NA_value(strip_brackets(i))) for i in cif[data]["_atom_site_U_iso_or_equiv"]]
 
 
-def get_beq(cif, data):
+def get_beq(cif: Dict, data: str) -> List[str]:
     """
     Looks the Biso, Uiso, Baniso, Uaniso (in that order) to get beq values. If they are missing,
     then a default value of "1." is used.
@@ -835,52 +851,31 @@ def get_beq(cif, data):
         data: the key value for a data block in the CIF
     Returns:
         A list containing the isotropic atomic displacement parameters, B, of all atomic sites.
-
     """
-    # these will act as keys later on
     labels = get_dict_entry_copy(cif[data], "_atom_site_label")  # I want everything to be in the same order as the site_label
 
     # get all potential ADPs from the str as dictionaries. The key is the atom label, the value is the ADP value
-    b_iso = make_b_dict(cif, data, "b_iso")
-    u_iso = make_b_dict(cif, data, "u_iso")
-    b_aniso = make_b_dict(cif, data, "b_aniso")
-    u_aniso = make_b_dict(cif, data, "u_aniso")
-    be_aniso = make_b_dict(cif, data, "be_aniso")
+    beq_types = ["b_iso", "u_iso", "b_aniso", "u_aniso", "be_aniso"]  # the order here matters. If it matches one (in the loop below), then the others aren't tested.
+    b_dicts = [make_b_dict(cif, data, beq_type) for beq_type in beq_types]
 
-    # check all the dictionaries in my order of preference to get the ADP value.
     r = []
-    for key in labels:
-        try:
-            b = b_iso[key]
-        except KeyError:
-            try:
-                b = u_iso[key]
-            except KeyError:
-                try:
-                    b = b_aniso[key]
-                    print(f"beq value for site {key} calculated from anisotropic B values.")
-                except KeyError:
-                    try:
-                        b = u_aniso[key]
-                        print(f"beq value for site {key} calculated from anisotropic U values.")
-                    except KeyError:
-                        try:
-                            b = be_aniso[key]
-                            print(f"beq value for site {key} calculated from anisotropic beta values.")
-                        except KeyError:
-                            b = None
+    for label in labels:
+        b = None
+        for d in b_dicts:
+            if (b := d.get(label)) is not None:  # I've found the value
+                break
 
         if b is None or float(b) == 0.0:  # missing or zero value
-            print(f"Warning! beq value missing or zero for site {key}! Default value of 1 entered")
+            print(f"Warning! beq value missing or zero for site {label}! Default value of 1 entered")
             b = "1."
         elif b.startswith("-"):
-            print(f"Warning! Negative atomic displacement parameter detected for site {key}! Please check.")
+            print(f"Warning! Negative atomic displacement parameter detected for site {label}! Please check.")
         r.append(b)  # the ADP values are now in the same order as the site label
 
     return r
 
 
-def make_b_dict(cif, data, b_type):
+def make_b_dict(cif: Dict, data: str, b_type: str) -> Dict:
     """
     A helper function for get_beq() to get the site labels and associated ADP values, and
     return a dictionary with labels as keys and values as ADP values. If the value is None,
@@ -892,7 +887,7 @@ def make_b_dict(cif, data, b_type):
 
     data : the data block you're looking at
 
-    b_type: "b_iso", "u_iso", "b_aniso", or "u_aniso"
+    b_type: "b_iso", "u_iso", "b_aniso", "u_aniso", or "be_aniso"
 
     Returns
     -------
@@ -903,45 +898,34 @@ def make_b_dict(cif, data, b_type):
 
     Raises
     ------
-    ValueError if b_type is not one of "b_iso", "u_iso", "b_aniso", or "u_aniso".
-
+    ValueError if b_type is not one of "b_iso", "u_iso", "b_aniso", "u_aniso", or "be_aniso"
     """
-    iso = True
-    if b_type == "b_iso":
-        f = get_b_iso
-    elif b_type == "u_iso":
-        f = get_u_iso
-    elif b_type == "b_aniso":
-        f = get_b_aniso
-        iso = False
-    elif b_type == "u_aniso":
-        f = get_u_aniso
-        iso = False
-    elif b_type == "be_aniso":
-        f = get_beta_aniso_as_b
-        iso = False
-    else:
-        raise ValueError(f'Invalid choice. Got "{b_type}", expecting "b_iso", "u_iso", "b_aniso", or "u_aniso".')
+
+    b_info = {"b_iso": (get_b_iso, True), "u_iso": (get_u_iso, True),
+              "b_aniso": (get_b_aniso, False), "u_aniso": (get_u_aniso, False),
+              "be_aniso": (get_beta_aniso_as_b, False)}
+
+    try:
+        f, iso = b_info[b_type]
+    except KeyError as e:
+        raise ValueError(f'Invalid choice. Got "{b_type}", expecting "b_iso", "u_iso", "b_aniso", "u_aniso", or "be_aniso".') from e
 
     try:
         b_list = f(cif, data)
-        if iso:
-            b_labels = get_dict_entry_copy(cif[data], "_atom_site_label")
-        else:
-            b_labels = get_dict_entry_copy(cif[data], "_atom_site_aniso_label")
+        tag = "_atom_site_label" if iso else "_atom_site_aniso_label"
+        b_labels = get_dict_entry_copy(cif[data], tag)
     except KeyError:
         return {}
+
     d = dict(zip(b_labels, b_list))
 
-    # filter out any None values
-    d = {k: v for k, v in d.items() if v is not None}
-    # filter out zero values
-    d = {k: v for k, v in d.items() if v != "0.0"}
+    # filter out any None/zero values
+    d = {k: v for k, v in d.items() if v is not None or v != "0.0"}
 
     return d
 
 
-def get_b_aniso(cif, data):
+def get_b_aniso(cif: Dict, data: str) -> List[str]:
     """
     Returns a list of strings giving the equivalent isotropic atomic displacement parameters, B,
     of all atomic sites by taking the average value of "_atom_site_aniso_B_11", "_22", and "_33".
@@ -962,12 +946,12 @@ def get_b_aniso(cif, data):
     B33 = [float(strip_brackets(i)) for i in cif[data]["_atom_site_aniso_B_33"]]
 
     b_equiv = [(b11 + b22 + b33) / 3.0 for b11, b22, b33 in zip(B11, B22, B33)]  # get the average of the three values
-    b_equiv = [str(round(float(i), 3)) for i in b_equiv]  # round to 3 d.p.
+    b_equiv = [str(round(b, 3)) for b in b_equiv]  # round to 3 d.p.
 
     return b_equiv
 
 
-def get_u_aniso(cif, data):
+def get_u_aniso(cif: Dict, data: str) -> List[str]:
     """
     Returns a list of strings giving the equivalent isotropic atomic displacement parameters, B,
     of all atomic sites by multiplying the average value of "_atom_site_aniso_U_11", "_22",
@@ -991,7 +975,7 @@ def get_u_aniso(cif, data):
     return [convert_u_to_b(str((u11 + u22 + u33) / 3.0)) for u11, u22, u33 in zip(U11, U22, U33)]
 
 
-def get_beta_aniso_as_b(cif, data):
+def get_beta_aniso_as_b(cif: Dict, data: str) -> List[str]:
     """
     Returns a list of strings giving the equivalent isotropic atomic displacement parameters, B.
     Converts beta values to B values, and then takes the average value of "_atom_site_aniso_beta_11", "_22", and "_33".
@@ -1013,7 +997,7 @@ def get_beta_aniso_as_b(cif, data):
     Returns:
         A list containing the isotropic atomic displacement parameters, B, of all atomic sites.
     Raises:
-        KeyError: if any of the keys "_atom_site_aniso_B_11", "_22", or "_33" is not present.
+        KeyError: if any of the keys "_atom_site_aniso_B_11", "_22", or "_33" is not present, or any of the "_cell_length_" or "_cell_angle" keys.
     """
     # convert the str lists to float lists
     be11 = [float(strip_brackets(i)) for i in cif[data]["_atom_site_aniso_beta_11"]]
@@ -1030,32 +1014,32 @@ def get_beta_aniso_as_b(cif, data):
     as_v, bs_v, cs_v = make_reciprocal_unit_cell_vectors(a, b, c, al, be, ga)
 
     # convert be values to b values
-    be11 = [4 * v / magnitude(as_v) ** 2 for v in be11]
-    be22 = [4 * v / magnitude(bs_v) ** 2 for v in be22]
-    be33 = [4 * v / magnitude(cs_v) ** 2 for v in be33]
+    be11 = [4 * v / as_v.square_magnitude() for v in be11]
+    be22 = [4 * v / bs_v.square_magnitude() for v in be22]
+    be33 = [4 * v / cs_v.square_magnitude() for v in be33]
 
     b_equiv = [(b11 + b22 + b33) / 3.0 for b11, b22, b33 in zip(be11, be22, be33)]  # get the average of the three values
-    b_equiv = [str(round(float(i), 3)) for i in b_equiv]  # round to 3 d.p.
+    b_equiv = [str(round(b, 3)) for b in b_equiv]  # round to 3 d.p.
 
     return b_equiv
 
 
-def make_reciprocal_unit_cell_vectors(a, b, c, al, be, ga):
+def make_reciprocal_unit_cell_vectors(a: str, b: str, c: str, al: str, be: str, ga: str) -> Tuple[Vector3, Vector3, Vector3]:
     a_v, b_v, c_v = make_unit_cell_vectors(a, b, c, al, be, ga)
-    V = triple_product(a_v, b_v, c_v)
+    V = a_v.dot(b_v.cross(c_v))
 
-    cas_v = cross_product(b_v, c_v)
-    cbs_v = cross_product(c_v, a_v)
-    ccs_v = cross_product(a_v, b_v)
+    cas_v = b_v.cross(c_v)
+    cbs_v = c_v.cross(a_v)
+    ccs_v = a_v.cross(b_v)
 
-    as_v = cas_v[0] / V, cas_v[1] / V, cas_v[2] / V
-    bs_v = cbs_v[0] / V, cbs_v[1] / V, cbs_v[2] / V
-    cs_v = ccs_v[0] / V, ccs_v[1] / V, ccs_v[2] / V
+    as_v = cas_v / V
+    bs_v = cbs_v / V
+    cs_v = ccs_v / V
 
     return as_v, bs_v, cs_v
 
 
-def make_unit_cell_vectors(a, b, c, al, be, ga):
+def make_unit_cell_vectors(a: str, b: str, c: str, al: str, be: str, ga: str) -> Tuple[Vector3, Vector3, Vector3]:
     # convert strings to float
     a_f = float(strip_brackets(a))
     b_f = float(strip_brackets(b))
@@ -1064,38 +1048,14 @@ def make_unit_cell_vectors(a, b, c, al, be, ga):
     be_f = math.radians(float(strip_brackets(be)))
     ga_f = math.radians(float(strip_brackets(ga)))
 
-    # make unit cell vectors as tuples
-    a_v = a_f, 0, 0
-    b_v = b_f * math.cos(ga_f), b_f * math.sin(ga_f), 0
+    a_v = Vector3(a_f, 0.0, 0.0)
+    b_v = Vector3(b_f * math.cos(ga_f), b_f * math.sin(ga_f), 0.0)
     n = (math.cos(al_f) - (math.cos(ga_f) * math.cos(be_f))) / math.sin(ga_f)
-    c_v = c_f * math.cos(be_f), c_f * n, math.sqrt(math.sin(al_f) ** 2 - n ** 2)
+    c_v = Vector3(c_f * math.cos(be_f), c_f * n, math.sqrt(math.sin(al_f) ** 2 - n ** 2))
 
     return a_v, b_v, c_v
 
 
-def cross_product(a, b):
-    return a[1] * b[2] - a[2] * b[1], \
-           a[2] * b[0] - a[0] * b[2], \
-           a[0] * b[1] - a[1] * b[0]
-
-
-def dot_product(a, b):
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-
-
-def triple_product(a, b, c):
-    return dot_product(a, cross_product(b, c))
-
-
-def magnitude(a):
-    return math.sqrt(a[0]**2 + a[1]**2 + a[2]**2)
-
-
 if __name__ == "__main__":
-    s = "Lithium titanium   oxide (2.39/3.4/8)"
-    print(s)
-    s = re.sub("[^a-zA-Z0-9_]+", "_", s)
-    s = re.sub("[_]+", "_", s)
-
-    print(s)
+    print("Hello, world!")
 
