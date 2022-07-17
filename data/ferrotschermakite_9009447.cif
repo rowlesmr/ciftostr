@@ -1,0 +1,125 @@
+#------------------------------------------------------------------------------
+#$Date: 2016-02-16 14:49:47 +0200 (Tue, 16 Feb 2016) $
+#$Revision: 176465 $
+#$URL: svn://www.crystallography.net/cod/cif/9/00/94/9009447.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9009447
+loop_
+_publ_author_name
+'Hawthorne, F. C.'
+'Grundy, H. D.'
+_publ_section_title
+;The crystal chemistry of the amphiboles. I: Refinement of the crystal
+ structure of ferrotschermakite Locality: Frood Mine, Sudbury, Ontario, Canada
+;
+_journal_name_full               'Mineralogical Magazine'
+_journal_page_first              36
+_journal_page_last               48
+_journal_paper_doi               10.1180/minmag.1973.039.301.05
+_journal_volume                  39
+_journal_year                    1973
+_chemical_formula_sum
+'Al3.3 Ca1.86 Fe2.4 H1.98 K0.14 Mg1.22 Mn0.02 Na0.23 O24 Si6 Ti0.1'
+_chemical_name_mineral           Ferrotschermakite
+_space_group_IT_number           12
+_symmetry_space_group_name_Hall  '-C 2y'
+_symmetry_space_group_name_H-M   'C 1 2/m 1'
+_cell_angle_alpha                90
+_cell_angle_beta                 105.00
+_cell_angle_gamma                90
+_cell_length_a                   9.8179
+_cell_length_b                   18.1060
+_cell_length_c                   5.3314
+_cell_volume                     915.432
+_exptl_crystal_density_diffrn    3.259
+_cod_original_formula_sum
+'Na.23 K.14 Ca1.86 Mg1.22 Mn.02 Fe2.4 Ti.1 Al3.3 Si6 H1.98 O24'
+_cod_database_code               9009447
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+1/2+x,1/2+y,z
+x,-y,z
+1/2+x,1/2-y,z
+-x,y,-z
+1/2-x,1/2+y,-z
+-x,-y,-z
+1/2-x,1/2-y,-z
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_23
+CaM4 0.01440 0.00847 0.01077 0.00000 0.00576 0.00000
+MgM4 0.01440 0.00847 0.01077 0.00000 0.00576 0.00000
+MnM4 0.01440 0.00847 0.01077 0.00000 0.00576 0.00000
+NaM4 0.01440 0.00847 0.01077 0.00000 0.00576 0.00000
+FeM1 0.01267 0.00631 0.00703 0.00000 0.00448 0.00000
+MgM1 0.01267 0.00631 0.00703 0.00000 0.00448 0.00000
+FeM2 0.00916 0.00482 0.00665 0.00000 0.00158 0.00000
+TiM2 0.00916 0.00482 0.00665 0.00000 0.00158 0.00000
+AlM2 0.00916 0.00482 0.00665 0.00000 0.00158 0.00000
+MgM2 0.00916 0.00482 0.00665 0.00000 0.00158 0.00000
+FeM2 0.00916 0.00482 0.00665 0.00000 0.00158 0.00000
+FeM3 0.01148 0.00349 0.00736 0.00000 0.00146 0.00000
+MgM3 0.01148 0.00349 0.00736 0.00000 0.00146 0.00000
+AlT1 0.00861 0.00598 0.00731 -0.00113 0.00181 0.00005
+SiT1 0.00861 0.00598 0.00731 -0.00113 0.00181 0.00005
+AlT2 0.00925 0.00565 0.00676 0.00009 0.00240 0.00033
+SiT2 0.00925 0.00565 0.00676 0.00009 0.00240 0.00033
+O1 0.01308 0.01445 0.01091 -0.00122 0.00312 -0.00071
+O2 0.01011 0.00996 0.00985 -0.00017 0.00191 -0.00043
+O3 0.01909 0.00980 0.01049 0.00000 0.00705 0.00000
+O4 0.01627 0.00548 0.01389 -0.00252 0.00735 0.00076
+O5 0.01189 0.01412 0.01090 -0.00078 0.00176 0.00397
+O6 0.01394 0.01129 0.01338 -0.00113 0.00379 -0.00468
+O7 0.01886 0.01179 0.02314 0.00000 0.00752 0.00000
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+NaA2 0.00000 0.47840 0.00000 0.02500 0.01646
+KA2 0.00000 0.47840 0.00000 0.03000 0.01646
+NaAm 0.02720 0.50000 0.06210 0.04000 0.02204
+K2Am 0.02720 0.50000 0.06210 0.04000 0.02204
+CaM4 0.00000 0.28060 0.50000 0.93000 ?
+MgM4 0.00000 0.28060 0.50000 0.01000 ?
+MnM4 0.00000 0.28060 0.50000 0.01000 ?
+NaM4 0.00000 0.28060 0.50000 0.05000 ?
+FeM1 0.00000 0.09020 0.50000 0.61000 ?
+MgM1 0.00000 0.09020 0.50000 0.39000 ?
+FeM2 0.00000 0.17820 0.00000 0.15000 ?
+TiM2 0.00000 0.17820 0.00000 0.05000 ?
+AlM2 0.00000 0.17820 0.00000 0.65000 ?
+MgM2 0.00000 0.17820 0.00000 0.10000 ?
+FeM2 0.00000 0.17820 0.00000 0.05000 ?
+FeM3 0.00000 0.00000 0.00000 0.78000 ?
+MgM3 0.00000 0.00000 0.00000 0.22000 ?
+AlT1 0.27990 0.08640 0.30120 0.38000 ?
+SiT1 0.27990 0.08640 0.30120 0.62000 ?
+AlT2 0.29260 0.17360 0.81610 0.12000 ?
+SiT2 0.29260 0.17360 0.81610 0.88000 ?
+H 0.20200 0.00000 0.78400 0.99000 0.00633
+O1 0.10460 0.09360 0.20990 1.00000 ?
+O2 0.11980 0.17660 0.74190 1.00000 ?
+O3 0.11360 0.00000 0.71260 1.00000 ?
+O4 0.37130 0.25110 0.79510 1.00000 ?
+O5 0.35160 0.14010 0.10930 1.00000 ?
+O6 0.34180 0.12060 0.60210 1.00000 ?
+O7 0.33230 0.00000 0.28610 1.00000 ?
