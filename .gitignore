@@ -24,6 +24,7 @@ venv*/
 pyvenv*/
 pip-wheel-metadata/
 
+
 # Installer logs
 pip-log.txt
 
@@ -73,3 +74,5 @@ docs/_build
 # Mypy Cache
 .mypy_cache/
 *.spec
+
+data

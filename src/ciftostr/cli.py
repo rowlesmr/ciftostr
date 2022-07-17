@@ -242,4 +242,4 @@ def main(argv=sys.argv):
 if __name__ == "__main__":
     main()
 
-print("Thanks for using CIFtoSTR. If you liked this, please cite " + CITATION)
+print(f"Thanks for using CIFtoSTR. If you liked this, please cite {CITATION}")
