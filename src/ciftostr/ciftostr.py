@@ -204,7 +204,7 @@ class Site:
         self.beq = beq
 
     def __str__(self):
-        return self.topas_str(0)
+        return self.topas_str(indent=0)
 
     def topas_str(self, indent: int = 2) -> str:
         tab = "\t" * indent
@@ -254,10 +254,10 @@ class Sites:
         self.beqs: List[str] = self._get_beqs(cifstr)
 
         self.sites: List[Site] = self._make_sites()
-        self.unit_cell = UnitCell(cifstr) if unit_cell is None else unit_cell
+        self.unit_cell: UnitCell = UnitCell(cifstr) if unit_cell is None else unit_cell
 
     def __str__(self) -> str:
-        return "\n".join([f"{site}" for site in self.sites])
+        return self.topas_str(indent=0)
 
     def __len__(self):
         return len(self.sites)
@@ -315,7 +315,7 @@ class Sites:
                 if (b := d.get(label)) is not None:  # I've found the value
                     break
 
-            if b is None or float(b) == 0.0:  # missing or zero value
+            if b is None or math.isclose(float(b), 0.0):  # missing or zero value
                 print(f"Warning! beq value missing or zero for site {label}! Default value of 1 entered")
                 b = "1."
             elif b.startswith("-"):
