@@ -1048,11 +1048,12 @@ def make_unit_cell_vectors(a: str, b: str, c: str, al: str, be: str, ga: str) ->
     be_f = math.radians(float(strip_brackets(be)))
     ga_f = math.radians(float(strip_brackets(ga)))
 
+    #  this comes from eqn 50 in Trueblood et al Acta Cryst 1996 A52 770-781
     a_v = Vector3(a_f, 0.0, 0.0)
     b_v = Vector3(b_f * math.cos(ga_f), b_f * math.sin(ga_f), 0.0)
-    n = (math.cos(al_f) - (math.cos(ga_f) * math.cos(be_f))) / math.sin(ga_f)
-    c_v = Vector3(c_f * math.cos(be_f), c_f * n, math.sqrt(math.sin(al_f) ** 2 - n ** 2))
-
+    c_v = Vector3(c_f * math.cos(be_f),
+                  c_f * (math.cos(al_f) - (math.cos(ga_f) * math.cos(be_f))) / math.sin(ga_f),
+                  c_f * math.sqrt(1 + 2 * math.cos(al_f) * math.cos(be_f) * math.cos(ga_f) - math.cos(al_f)**2 - math.cos(be_f)**2 - math.cos(ga_f)**2) / math.sin(ga_f))
     return a_v, b_v, c_v
 
 
